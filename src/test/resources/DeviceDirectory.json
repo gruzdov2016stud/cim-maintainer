@@ -1431,8 +1431,8 @@
     "id": "e1d723da-cde8-4c61-971f-0b26ca568d31",
     "deviceType": "EquivalentInjection",
     "name": {
-      "en": "Эквивалентная энергосистема",
-      "ru": "Equivalent injection"
+      "en": "Equivalent injection",
+      "ru": "Эквивалентная энергосистема"
     },
     "svg": {
       "en": "",
@@ -1462,8 +1462,8 @@
     "id": "64d3f2e0-2c6b-4940-98cf-c7cf4ac8278a",
     "deviceType": "Load",
     "name": {
-      "en": "Нагрузка",
-      "ru": "Load"
+      "en": "Load",
+      "ru": "Нагрузка"
     },
     "svg": {
       "en": "",

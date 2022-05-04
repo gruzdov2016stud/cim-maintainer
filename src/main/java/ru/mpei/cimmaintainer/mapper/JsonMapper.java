@@ -29,6 +29,7 @@ public class JsonMapper {
         for (Device line : deviceType) {
             device.put(line.getId(), line.getName().getEn());
         }
+        System.out.println(device);
         return device;
     }
 
@@ -37,7 +38,7 @@ public class JsonMapper {
         Map<String, String> voltage = new HashMap<>();
         Voltage[] voltageType = objectMapper.readValue(new File(filePath), Voltage[].class);
         for (Voltage line : voltageType) {
-            voltage.put(line.getId(), line.getValue().getEn());
+            voltage.put(line.getDirectoryId(), line.getValue().getEn());
         }
         return voltage;
     }

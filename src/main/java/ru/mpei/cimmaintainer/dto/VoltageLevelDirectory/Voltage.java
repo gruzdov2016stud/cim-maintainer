@@ -12,5 +12,4 @@ import java.util.List;
 public class Voltage extends Identifier {
     private Value value;
     private String directoryId;
-    private Integer floatValue;
 }

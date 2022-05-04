@@ -12,6 +12,4 @@ public class Port extends Identifier {
     private String name;
     private List<String> links;
     private List<PortFields> fields;
-    private Links link;
-    private Port port;
 }

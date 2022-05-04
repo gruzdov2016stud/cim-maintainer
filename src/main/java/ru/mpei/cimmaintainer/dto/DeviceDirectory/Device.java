@@ -10,5 +10,4 @@ import java.util.List;
 public class Device extends Identifier {
     private String deviceType;
     private Value name;
-    private List<FieldsDevice> fields;
 }

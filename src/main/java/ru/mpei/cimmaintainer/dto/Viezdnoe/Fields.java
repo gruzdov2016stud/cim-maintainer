@@ -8,4 +8,6 @@ import lombok.Setter;
 public class Fields {
     private String name;
     private String value;
+    private String directoryId;
+
 }

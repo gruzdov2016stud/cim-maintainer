@@ -22,8 +22,8 @@ public class TestClass {
         Map<String, String> voltageLevel = voltageLevelMapper.mapVoltageLevelJsonToSld("src/test/resources/VoltageLevelDirectory.json");
 
         SldToCimConverter converter = new SldToCimConverter();
-
         converter.convert(sld, deviceDirectory, voltageLevel);
+
         String cimModel = converter.getResult(RDFFormat.RDFXML);
 
         System.out.println();

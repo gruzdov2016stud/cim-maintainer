@@ -7,9 +7,7 @@ import org.eclipse.rdf4j.model.util.ModelBuilder;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.Rio;
-import ru.mpei.cimmaintainer.dto.DeviceDirectory.Device;
 import ru.mpei.cimmaintainer.dto.Viezdnoe.*;
-import ru.mpei.cimmaintainer.dto.VoltageLevelDirectory.Voltage;
 import ru.mpei.cimmaintainer.writer.RdfWriter;
 
 import java.io.File;
@@ -64,13 +62,13 @@ public class SldToCimConverter {
         /** todo CIM-ресурсы оборудования*/
         /**каждому оборудованию подстанции присвоим соответствующий класс напряжения*/
         modelBuilder
-                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(voltage.get(element.getVoltageLevel())));
+//                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(voltage.get(element.getVoltageLevel()))) //Для полученния rdf:resource="#110kV"
+                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(element.getVoltageLevel()));//Для полученния rdf:resource="#14"
 /*          modelBuilder
                     .add("cim:ConductingEquipment.BaseVoltage", voltage.getValue().getEn());*/
         if (element.getType().equals("directory")) {
             /**каждому оборудованию подстанции присвоим соответствующее имя оборудования */
-            modelBuilder
-                    .add(RDF.TYPE, "cim:".concat(devices.get(element.getDirectoryEntryId())));
+            modelBuilder.add(RDF.TYPE, "cim:".concat(devices.get(element.getDirectoryEntryId())));
             /**каждому Силовому ТР добавить поле мощности*/
             if (element.getDirectoryEntryId().equals("1eda194d-1c4d-4d98-b23e-803ef281d074"))
                 for (Fields fields : element.getFields()) {
@@ -87,10 +85,8 @@ public class SldToCimConverter {
                                             + voltage.get(field.getDirectoryId()));
                 }
             }
-        } else {
-            modelBuilder
-                    .add(RDF.TYPE, "cim:".concat(element.getType()));
-        }
+        } else modelBuilder.add(RDF.TYPE, "cim:".concat(element.getType()));
+
         /**CIM-ресурсы Terminal*/
         for (Port port : element.getPorts()) {
             if (port.getLinks() == null || port.getLinks().size() == 0) continue;
@@ -122,9 +118,7 @@ public class SldToCimConverter {
                     .subject("cim:".concat(element.getId()))
                     .add(RDF.TYPE, "cim:ConnectivityNode")
                     .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId());
-            ;
         }
-
     }
 
 //    private void groupConnectivityElemetsByGraphAnalyzer(SingleLineDiagram sld) {
