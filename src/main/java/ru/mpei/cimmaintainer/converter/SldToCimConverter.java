@@ -17,9 +17,7 @@ import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 public class SldToCimConverter {
 
@@ -38,7 +36,7 @@ public class SldToCimConverter {
 
     public void convert(SingleLineDiagram sld, Map<String, String> devices, Map<String, String> voltage) {
         sld.getElements().forEach(e -> convertElementToRdfResource(e, devices, voltage));
-//        groupConnectivityElemetsByGraphAnalyzer(sld);
+        groupConnectivityElemetsByGraphAnalyzer(sld);
     }
 
     private void convertElementToRdfResource(
@@ -107,45 +105,92 @@ public class SldToCimConverter {
                                 .subject("cim:".concat(port.getId() + field.getDirectoryId() + "_" + voltage.get(element.getVoltageLevel())))
                                 .add("cim:IdentifiedObject.mRID", port.getId() + field.getDirectoryId() + "_" + voltage.get(element.getVoltageLevel()))
                                 .add(RDF.TYPE, "cim:PowerTransformerEnd")
-                                .add("cim:TransformerEnd.BaseVoltage",voltage.get(element.getVoltageLevel()))
+                                .add("cim:TransformerEnd.BaseVoltage", voltage.get(element.getVoltageLevel()))
                                 .add("cim:PowerTransformerEnd.PowerTransformer", element.getOperationName())
                                 .add("cim:Terminal.ConnectivityNode", port.getLinks().get(0))
                                 .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId());
                     }
                 }
-        if (element.getType().equals("connectivity")) {
+    }
+
+    private void ConnectivityNode(List<List<Elements>> groupsOfConnectivity) {
+        int i = 0;
+        while (i < groupsOfConnectivity.size()) {
             modelBuilder
-                    .subject("cim:".concat(element.getId()))
+                    .subject("cim:" + groupsOfConnectivity.get(i).get(0).getId())
+                    .add("cim:IdentifiedObject.name", i)
+                    .add("cim:IdentifiedObject.projectID", "Substation Viezdnoe")
                     .add(RDF.TYPE, "cim:ConnectivityNode")
-                    .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId());
+                    .add("cim:ConnectivityNode.BaseVoltage", groupsOfConnectivity.get(i).get(0).getVoltageLevel());
+            int j = 0;
+            while (j < groupsOfConnectivity.get(i).get(0).getPorts().size()) {
+                if (groupsOfConnectivity.get(i).get(0).getPorts().get(j).getLinks().size() != 0) {
+                    if (groupsOfConnectivity.get(i).get(0).getPorts().get(j).getLink().getSourcePort().getElement().getType().equals("directory")) {
+                        modelBuilder
+                                .subject("cim:" + groupsOfConnectivity.get(i).get(0).getPorts().get(j).getId())
+                                .add("cim:IdentifiedObject.mRID", groupsOfConnectivity.get(i).get(0).getPorts().get(j).getId())
+                                .add("cim:IdentifiedObject.name", groupsOfConnectivity.get(i).get(0).getPorts().get(j).getName())
+                                .add(RDF.TYPE, "cim:Terminal")
+                                .add("cim:TerminalConnectivityNode", groupsOfConnectivity.get(i).get(0).getId())
+                                .add("cim:Terminal.ConductingEquipment", "cim:" + groupsOfConnectivity.get(i).get(0).getPorts().get(j).getLink().getSourcePort().getElement().getId());
+                    }
+                }
+                j++;
+            }
+            i++;
         }
     }
 
-//    private void groupConnectivityElemetsByGraphAnalyzer(SingleLineDiagram sld) {
-//        sld.getElements().stream()
-//                .filter(e -> "connectivity".equals(e.getType()))
-//                .forEach(e -> {
-//                    /** Создание очереди и задали первый елемент e*/
-//                    Deque<Elements> connectivityElements = new LinkedList<>() {{
-//                        add(e);
-//                    }};
-//                    walkThroughSingelDiagram(connectivityElements);
-//
-//                });
-//        System.out.println();
-//    }
-//
-//
-//    /**
-//     * Рекурентный метод - вызывает сам себя
-//     */
-//    private void walkThroughSingelDiagram(Deque<Elements> connectivityElements) {
-//        Elements connectivity = connectivityElements.pop();
-//        connectivity.getPorts().forEach(p -> {
-//            String link = p.getLinks().get(0);
-//        });
-//
-//    }
+
+    private List<List<Elements>> groupConnectivityElemetsByGraphAnalyzer(SingleLineDiagram sld) {
+        /**Множество в котором не будет повторяющихся значений, пока мы обходи граф*/
+        Set<String> visitedElementsIds = new HashSet<>();
+        /**Группа List<Elements> groupOfConnectivityElements */
+        List<List<Elements>> groupsOfConnectivityElements = new LinkedList<>();
+
+        sld.getElements().stream()
+                .filter(e -> "connectivity".equals(e.getType())) // Создаем массив из connectivity
+                .filter(e -> !visitedElementsIds.contains(e.getId())) // Отбираем не посещённых
+                .forEach(e -> { // Итеррируемся по отобранным элементам
+                    /** Создание очереди.Из элементов, которые встретили пока шли по графу.
+                     * Добавили только один элемент*/
+                    Deque<Elements> connectivityElements = new LinkedList<>() {{
+                        add(e);
+                    }}; // Deque - стек у которого забираем последнего
+                    /**Группа из коннективити, которые надо преобразовать в один коннективити*/
+                    List<Elements> groupOfConnectivityElements = new LinkedList<>();
+                    walkThroughSingelDiagram(connectivityElements, visitedElementsIds, groupOfConnectivityElements);
+                    groupsOfConnectivityElements.add(groupOfConnectivityElements);
+
+                });
+        return groupsOfConnectivityElements;
+    }
+
+    /**
+     * Рекурентный метод - вызывает сам себя
+     */
+    private void walkThroughSingelDiagram(
+            Deque<Elements> connectivityElements,
+            Set<String> visitedElementsIds,
+            List<Elements> groupOfConnectivityElements
+    ) {
+        Elements connectivity = connectivityElements.pop();
+        /**Если мы не посещали это множество, то добавляем ID. Когда мы достаём элемент connectivity,
+         * то помещаем как посещенный  */
+        visitedElementsIds.add(connectivity.getId());
+        groupOfConnectivityElements.add(connectivity);
+        connectivity.getPorts().forEach(p -> {
+            Links link = p.getLink();
+            if (link == null) return;
+            Elements sibling = link.getSourcePortId().equals(p.getId()) ? link.getTarget() : link.getSource();
+            /**Проверка на connectivity и мы не посетили очередь */
+            if ("connectivity".equals(sibling.getType()) && !visitedElementsIds.contains(sibling.getId())) {
+                connectivityElements.add(sibling);
+                walkThroughSingelDiagram(connectivityElements, visitedElementsIds, groupOfConnectivityElements);
+            }
+        });
+
+    }
 
 
     public String getResult(RDFFormat rdfFormat) {

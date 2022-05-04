@@ -15,5 +15,5 @@ public class Links extends Identifier {
     private Port sourcePort;
     private Port targetPort;
     private Elements source;
-    private String target;
+    private Elements target;
 }
