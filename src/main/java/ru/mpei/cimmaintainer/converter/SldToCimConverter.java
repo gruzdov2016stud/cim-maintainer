@@ -38,15 +38,15 @@ public class SldToCimConverter {
                 .add(RDF.TYPE, "cim:BaseVoltage");
     }
 
-    public void convert(SingleLineDiagram sld, Map<String, String> devices, Map<String, String> voltageLevel) {
-        sld.getElements().forEach(e -> convertElementToRdfResource(e, devices, voltageLevel));
-        groupConnectivityElemetsByGraphAnalyzer(sld);
+    public void convert(SingleLineDiagram sld, Map<String, String> devices, Map<String, String> voltage) {
+        sld.getElements().forEach(e -> convertElementToRdfResource(e, devices, voltage));
+//        groupConnectivityElemetsByGraphAnalyzer(sld);
     }
 
     private void convertElementToRdfResource(
             Elements element,
             Map<String, String> devices,
-            Map<String, String> voltageLevel
+            Map<String, String> voltage
     ) {
         modelBuilder
                 .subject("cim:" + element.getId())
@@ -61,37 +61,30 @@ public class SldToCimConverter {
             modelBuilder
                     .add("cim:ConductingEquipment.Terminal", "cim:".concat(port.getId()));
         }
-        /**CIM-ресурсы оборудования*/
+        /** todo CIM-ресурсы оборудования*/
+        /**каждому оборудованию подстанции присвоим соответствующий класс напряжения*/
+        modelBuilder
+                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(voltage.get(element.getVoltageLevel())));
+/*          modelBuilder
+                    .add("cim:ConductingEquipment.BaseVoltage", voltage.getValue().getEn());*/
         if (element.getType().equals("directory")) {
-            for (Device device : devices.getDevices()) {
-                /**каждому оборудованию подстанции присвоим соответствующее имя оборудования */
-                if (element.getDirectoryEntryId().equals(device.getId()))
+            /**каждому оборудованию подстанции присвоим соответствующее имя оборудования */
+            modelBuilder
+                    .add(RDF.TYPE, "cim:".concat(devices.get(element.getDirectoryEntryId())));
+            /**каждому Силовому ТР добавить поле мощности*/
+            if (element.getDirectoryEntryId().equals("1eda194d-1c4d-4d98-b23e-803ef281d074"))
+                for (Fields fields : element.getFields()) {
                     modelBuilder
-                            .add(RDF.TYPE, "cim:".concat(device.getDeviceType()));
-                /**каждому Силовому ТР добавить поле мощности*/
-                if (element.getDirectoryEntryId().equals("1eda194d-1c4d-4d98-b23e-803ef281d074"))
-                    for (Fields fields : element.getFields()) {
-                        modelBuilder
-                                .add("cim:ConductingEquipment.ApparentPower", fields.getValue());
-                    }
-            }
-            /**каждому оборудованию подстанции присвоим соответствующий класс напряжения*/
-            for (Voltage voltage : voltageLevel.getVoltages()) {
-                if (element.getVoltageLevel().equals(voltage.getDirectoryId()))
+                            .add("cim:ConductingEquipment.ApparentPower", fields.getValue());
+                }
+            /**каждой Обмотки ТР добавим класс напряжения*/
+            for (Port ports : element.getPorts()) {
+                for (PortFields field : ports.getFields()) {
+                    /**Каждому PowerTransformer добавим PowerTransformerEnd */
                     modelBuilder
-                            .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(voltage.getDirectoryId()));
-/*                    modelBuilder
-                            .add("cim:ConductingEquipment.BaseVoltage", voltage.getValue().getEn());*/
-                /**каждой Обмотки ТР добавим класс напряжения*/
-                if (element.getDirectoryEntryId().equals("1eda194d-1c4d-4d98-b23e-803ef281d074")) {
-                    for (Port ports : element.getPorts()) {
-                        for (PortFields field : ports.getFields()) {
-                            if (voltage.getDirectoryId().equals(field.getDirectoryId()))
-                            /**Каждому PowerTransformer добавим PowerTransformerEnd */
-                                modelBuilder
-                                        .add("cim:PowerTransformerEnd", ports.getId() + field.getDirectoryId() + "_" + voltage.getValue().getEn());
-                        }
-                    }
+                            .add("cim:PowerTransformerEnd",
+                                    ports.getId() + field.getDirectoryId() + "_"
+                                            + voltage.get(field.getDirectoryId()));
                 }
             }
         } else {
@@ -114,17 +107,14 @@ public class SldToCimConverter {
             /**CIM-ресурс PowerTransformerEnd*/
                 for (Port port : element.getPorts()) {
                     for (PortFields field : port.getFields()) {
-                        for (Voltage voltage : voltageLevel.getVoltages()) {
-                            if (voltage.getDirectoryId().equals(field.getDirectoryId()))
-                                modelBuilder
-                                        .subject("cim:".concat(port.getId() + field.getDirectoryId() + "_" + voltage.getValue().getEn()))
-                                        .add("cim:IdentifiedObject.mRID", port.getId() + field.getDirectoryId() + "_" + voltage.getValue().getEn())
-                                        .add(RDF.TYPE, "cim:PowerTransformerEnd")
-                                        .add("cim:TransformerEnd.BaseVoltage", voltage.getValue().getEn())
-                                        .add("cim:PowerTransformerEnd.PowerTransformer", element.getOperationName())
-                                        .add("cim:Terminal.ConnectivityNode", port.getLinks().get(0))
-                                        .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId());
-                        }
+                        modelBuilder
+                                .subject("cim:".concat(port.getId() + field.getDirectoryId() + "_" + voltage.get(element.getVoltageLevel())))
+                                .add("cim:IdentifiedObject.mRID", port.getId() + field.getDirectoryId() + "_" + voltage.get(element.getVoltageLevel()))
+                                .add(RDF.TYPE, "cim:PowerTransformerEnd")
+                                .add("cim:TransformerEnd.BaseVoltage",voltage.get(element.getVoltageLevel()))
+                                .add("cim:PowerTransformerEnd.PowerTransformer", element.getOperationName())
+                                .add("cim:Terminal.ConnectivityNode", port.getLinks().get(0))
+                                .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId());
                     }
                 }
         if (element.getType().equals("connectivity")) {
@@ -137,31 +127,31 @@ public class SldToCimConverter {
 
     }
 
-    private void groupConnectivityElemetsByGraphAnalyzer(SingleLineDiagram sld) {
-        sld.getElements().stream()
-                .filter(e -> "connectivity".equals(e.getType()))
-                .forEach(e -> {
-                    /** Создание очереди и задали первый елемент e*/
-                    Deque<Elements> connectivityElements = new LinkedList<>() {{
-                        add(e);
-                    }};
-                    walkThroughSingelDiagram(connectivityElements);
-
-                });
-        System.out.println();
-    }
-
-
-    /**
-     * Рекурентный метод - вызывает сам себя
-     */
-    private void walkThroughSingelDiagram(Deque<Elements> connectivityElements) {
-        Elements connectivity = connectivityElements.pop();
-        connectivity.getPorts().forEach(p -> {
-            String link = p.getLinks().get(0);
-        });
-
-    }
+//    private void groupConnectivityElemetsByGraphAnalyzer(SingleLineDiagram sld) {
+//        sld.getElements().stream()
+//                .filter(e -> "connectivity".equals(e.getType()))
+//                .forEach(e -> {
+//                    /** Создание очереди и задали первый елемент e*/
+//                    Deque<Elements> connectivityElements = new LinkedList<>() {{
+//                        add(e);
+//                    }};
+//                    walkThroughSingelDiagram(connectivityElements);
+//
+//                });
+//        System.out.println();
+//    }
+//
+//
+//    /**
+//     * Рекурентный метод - вызывает сам себя
+//     */
+//    private void walkThroughSingelDiagram(Deque<Elements> connectivityElements) {
+//        Elements connectivity = connectivityElements.pop();
+//        connectivity.getPorts().forEach(p -> {
+//            String link = p.getLinks().get(0);
+//        });
+//
+//    }
 
 
     public String getResult(RDFFormat rdfFormat) {
@@ -193,5 +183,6 @@ public class SldToCimConverter {
     }
 
 }
+
 
 
