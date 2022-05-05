@@ -36,8 +36,10 @@ public class SldToCimConverter {
 
     public void convert(SingleLineDiagram sld, Map<String, String> devices, Map<String, String> voltage) {
         sld.getElements().forEach(e -> convertElementToRdfResource(e, devices, voltage));
-        groupConnectivityElemetsByGraphAnalyzer(sld);
+        List<List<Elements>> groupsOfConnectivity = groupConnectivityElemetsByGraphAnalyzer(sld);
+        ConnectivityNode(groupsOfConnectivity);
     }
+
 
     private void convertElementToRdfResource(
             Elements element,
@@ -46,7 +48,10 @@ public class SldToCimConverter {
     ) {
         modelBuilder
                 .subject("cim:" + element.getId())
-                .add("cim:IdentifiedObject.mRID", element.getId());
+                .add("cim:IdentifiedObject.mRID", element.getId())
+        /**каждому оборудованию подстанции присвоим соответствующий класс напряжения*/
+//                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(voltage.get(element.getVoltageLevel()))) //Для полученния rdf:resource="#110kV"
+                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(element.getVoltageLevel()));//Для полученния rdf:resource="#14"
         if (element.getProjectName() != null)
             modelBuilder.add("cim:IdentifiedObject.name", element.getProjectName());
 
@@ -58,10 +63,6 @@ public class SldToCimConverter {
                     .add("cim:ConductingEquipment.Terminal", "cim:".concat(port.getId()));
         }
         /** todo CIM-ресурсы оборудования*/
-        /**каждому оборудованию подстанции присвоим соответствующий класс напряжения*/
-        modelBuilder
-//                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(voltage.get(element.getVoltageLevel()))) //Для полученния rdf:resource="#110kV"
-                .add("cim:ConductingEquipment.BaseVoltage", "cim:".concat(element.getVoltageLevel()));//Для полученния rdf:resource="#14"
 /*          modelBuilder
                     .add("cim:ConductingEquipment.BaseVoltage", voltage.getValue().getEn());*/
         if (element.getType().equals("directory")) {
@@ -102,8 +103,8 @@ public class SldToCimConverter {
                 for (Port port : element.getPorts()) {
                     for (PortFields field : port.getFields()) {
                         modelBuilder
-                                .subject("cim:".concat(port.getId() + field.getDirectoryId() + "_" + voltage.get(element.getVoltageLevel())))
-                                .add("cim:IdentifiedObject.mRID", port.getId() + field.getDirectoryId() + "_" + voltage.get(element.getVoltageLevel()))
+                                .subject("cim:".concat(UUID.randomUUID().toString()))
+                                .add("cim:IdentifiedObject.mRID", UUID.randomUUID().toString())
                                 .add(RDF.TYPE, "cim:PowerTransformerEnd")
                                 .add("cim:TransformerEnd.BaseVoltage", voltage.get(element.getVoltageLevel()))
                                 .add("cim:PowerTransformerEnd.PowerTransformer", element.getOperationName())
@@ -113,6 +114,9 @@ public class SldToCimConverter {
                 }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // todo Методы
+    ///////////////////////////////////////////////////////////////////////////
     private void ConnectivityNode(List<List<Elements>> groupsOfConnectivity) {
         int i = 0;
         while (i < groupsOfConnectivity.size()) {

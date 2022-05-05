@@ -282,7 +282,7 @@
   },
   {
     "id": "1fbdb6d0-a168-4cd8-a9fe-21b1b5840efd",
-    "deviceType": "SurgeArrester",
+    "deviceType": " Arrester",
     "name": {
       "en": "Surge arrester",
       "ru": "Ограничитель перенапряжения (ОПН)"

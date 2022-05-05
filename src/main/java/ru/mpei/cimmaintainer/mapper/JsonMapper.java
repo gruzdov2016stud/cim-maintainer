@@ -27,9 +27,8 @@ public class JsonMapper {
         Map<String, String> device = new HashMap<>();
         Device[] deviceType = objectMapper.readValue(new File(filePath), Device[].class);
         for (Device line : deviceType) {
-            device.put(line.getId(), line.getName().getEn());
+            device.put(line.getId(), defineCimClassForDeviceType(line.getDeviceType()));
         }
-        System.out.println(device);
         return device;
     }
 
@@ -41,5 +40,84 @@ public class JsonMapper {
             voltage.put(line.getDirectoryId(), line.getValue().getEn());
         }
         return voltage;
+    }
+
+    private String defineCimClassForDeviceType(String deviceType){
+        switch (deviceType){
+            case "Load":
+                return "EnergyConsumer";
+
+            case "Generator":
+                return "RotatingMachine";
+
+            case "CableTransmissionLine2Ports":
+            case "CableTransmissionLine":
+            case "OverheadTransmissionLine2Ports":
+            case "OverheadTransmissionLine":
+                return "Line";
+
+            case "DetachablePinConnection":
+            case "IndoorCircuitBreaker":
+            case "ModularSwitchboardWithFuse":
+            case "ModularSwitchboard":
+                return "Switch";
+
+            case "Breaker":
+                return "Breaker";
+            case "Recloser":
+                return "Recloser";
+            case "Jumper":
+                return "Jumper";
+            case "Disconnector":
+                return "Disconnector";
+            case "Fuse":
+                return "Fuse";
+            case "WaveTrap":
+                return "WaveTrap";
+            case "GroundDisconnector":
+                return "GroundDisconnector";
+
+            case " Arrester":
+                return "SurgeArrester";
+
+            case "CouplingCapacitor":
+            case "RfFilter":
+                return "AuxiliaryEquipment";
+
+            case "DualCurrentLimitingReactor":
+            case "CurrentLimitingReactor":
+            case "StaticCapacitorBank":
+            case "ShuntReactor":
+                return "ShuntCompensator";
+
+            case "AutoTransformer":
+            case "AutoTransformerWithTapChanger":
+            case "ThreeWindingPowerTransformerWithTapChanger":
+            case "TwoWindingPowerTransformer":
+            case "SplitWindingTransformer":
+            case "TwoWindingPowerTransformerWithTapChanger":
+            case "ThreeWindingPowerTransformer":
+            case "SplitWindingTransformerWithTapChanger":
+                return "PowerTransformer";
+
+            case "OpticalCurrentTransformer":
+            case "SinglePhaseCurrentTransformer":
+            case "ThreePhaseCurrentTransformer":
+                return "CurrentTransformer";
+
+            case "TwoWindingVoltageTransformer":
+            case "ThreeWindingVoltageTransformer":
+            case "OpticalVoltageTransformer":
+            case "FourWindingVoltageTransformer":
+                return "PotentialTransformer";
+
+            case "EquivalentInjection":
+            case "Grounding":
+                return "ConductingEquipment";
+
+
+            default: throw  new RuntimeException("В CIM нету такого типа: "+deviceType);
+        }
+
     }
 }
