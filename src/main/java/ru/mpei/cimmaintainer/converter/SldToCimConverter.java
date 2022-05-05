@@ -38,6 +38,13 @@ public class SldToCimConverter {
         sld.getElements().forEach(e -> convertElementToRdfResource(e, devices, voltage));
         List<List<Elements>> groupsOfConnectivity = groupConnectivityElemetsByGraphAnalyzer(sld);
         ConnectivityNode(groupsOfConnectivity);
+        Map<String, Elements> elementsMap = new HashMap<>();
+        sld.getElements().stream()
+                .filter(element -> element.getType().equals("directory"))
+                .forEach(element -> {
+                    elementsMap.put(element.getId(), element);});
+        List<Links> linksList = new ArrayList<>(sld.getLinks());
+        links(linksList, elementsMap);
     }
 
 
@@ -93,7 +100,6 @@ public class SldToCimConverter {
                     .subject("cim:".concat(port.getId()))
                     .add("cim:IdentifiedObject.mRID", port.getId())
                     .add("cim:IdentifiedObject.name", port.getName())
-                    .add("cim:Terminal.ConnectivityNode", port.getLinks().get(0))
                     .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId())
                     .add(RDF.TYPE, "cim:Terminal");
         }
@@ -106,10 +112,9 @@ public class SldToCimConverter {
                                 .subject("cim:".concat(UUID.randomUUID().toString()))
                                 .add("cim:IdentifiedObject.mRID", UUID.randomUUID().toString())
                                 .add(RDF.TYPE, "cim:PowerTransformerEnd")
-                                .add("cim:TransformerEnd.BaseVoltage", voltage.get(element.getVoltageLevel()))
+                                .add("cim:ConductingEquipment.BaseVoltage", voltage.get(element.getVoltageLevel()))
                                 .add("cim:PowerTransformerEnd.PowerTransformer", element.getOperationName())
-                                .add("cim:Terminal.ConnectivityNode", port.getLinks().get(0))
-                                .add("cim:Terminal.ConductingEquipment", "cim:" + element.getId());
+                                .add("cim:ConductingEquipment.Terminal", "cim:" + element.getId());
                     }
                 }
     }
@@ -143,6 +148,34 @@ public class SldToCimConverter {
             }
             i++;
         }
+    }
+
+    private void links(List<Links> linksList, Map<String, Elements> elementsMap){
+        linksList.stream()
+                .filter(link -> elementsMap.containsKey(link.getSourceId()))
+                .filter(link -> elementsMap.containsKey(link.getTargetId()))
+                .forEach(link -> {
+                    modelBuilder
+                            .subject("cim:_ID_" + link.getId())
+                            .add("cim:IdentifiedObject.name", "Link")
+//                            .add("cim:IdentifiedObject.projectID", "Substation Viezdnoe")
+                            .add(RDF.TYPE, "cim:ConnectivityNode")
+                            .add("cim:ConnectivityNode.BaseVoltage", elementsMap.get(link.getSourceId()).getVoltageLevel());
+                    modelBuilder
+                            .subject("cim:_ID_" + link.getSourcePortId())
+                            .add("cim:IdentifiedObject.mRID", link.getSourcePortId())
+                            .add("cim:IdentifiedObject.name", elementsMap.get(link.getSourceId()).getOperationName())
+                            .add(RDF.TYPE, "cim:Terminal")
+                            .add("cim:TerminalConnectivityNode", link.getId())
+                            .add("cim:Terminal.ConductingEquipment", "cim:" + link.getSourceId());
+                    modelBuilder
+                            .subject("cim:_ID_" + link.getTargetPortId())
+                            .add("cim:IdentifiedObject.mRID", link.getTargetPortId())
+                            .add("cim:IdentifiedObject.name", elementsMap.get(link.getTargetId()).getOperationName())
+                            .add(RDF.TYPE, "cim:Terminal")
+                            .add("cim:TerminalConnectivityNode", link.getId())
+                            .add("cim:Terminal.ConductingEquipment", "cim:" + link.getTargetId());
+                });
     }
 
 
